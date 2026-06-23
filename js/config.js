@@ -5,9 +5,9 @@
    ============================================================ */
 
 const SUPABASE_CONFIG = {
-  url: '',          // ← O'zingizning Supabase URL ingizni shu yerga yozing
-  anonKey: '',      // ← O'zingizning Supabase Anon Key ingizni shu yerga yozing
-  enabled: false     // ← Supabase ishlatmoqchi bo'lsangiz true qiling
+  url: 'https://ufhmjjuyheohjpuotdxs.supabase.co',          // ← O'zingizning Supabase URL ingizni shu yerga yozing
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmaG1qanV5aGVvaGpwdW90ZHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NjgyMDEsImV4cCI6MjA5NjA0NDIwMX0.n5sxmjOXYgMhaxiAKMYl1iAv1jTNOGL28K5MDP2pj5w',      // ← O'zingizning Supabase Anon Key ingizni shu yerga yozing
+  enabled: true     // ← Supabase ishlatmoqchi bo'lsangiz true qiling
 };
 
 // Supabase client — faqat enabled bo'lsa yaratiladi
