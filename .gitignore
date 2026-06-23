@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment va maxfiy fayllar
+.env
+.env.local
+.env.production
+
+# OS fayllari
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor fayllari
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Log fayllari
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel/
+
+# Supabase local
+.supabase/
