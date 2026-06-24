@@ -1,5 +1,5 @@
 /* ============================================================
-   TEST ISHLASH MODULI
+   TEST ISHLASH MODULI (To'liq, xatosiz versiya)
    ============================================================ */
 
 var TestEngine = {
@@ -16,6 +16,7 @@ var TestEngine = {
   audioPlaying: false,
   speechUtterance: null,
 
+  /* ==================== TESTNI BOSHLASH ==================== */
   start: function(testId, mode) {
     var self = this;
     DB.getTestById(testId).then(function(test) {
@@ -34,6 +35,7 @@ var TestEngine = {
       self.audioElapsed = 0;
       self.audioPlaying = false;
 
+      // Kalit nomlarini moslashtirish (Supabase uchun)
       if (!test.time_limit && test.timeLimit) {
         test.time_limit = test.timeLimit;
       }
@@ -62,6 +64,7 @@ var TestEngine = {
     });
   },
 
+  /* ==================== TIMER ==================== */
   startTimer: function() {
     var self = this;
     if (this.timer) clearInterval(this.timer);
@@ -101,6 +104,7 @@ var TestEngine = {
     this.audioElapsed = 0;
   },
 
+  /* ==================== ASOSIY RENDER ==================== */
   render: function() {
     var test = this.currentTest;
     var user = Auth.getCurrentUser();
@@ -124,16 +128,19 @@ var TestEngine = {
     }
   },
 
+  /* ==================== READING TEST ==================== */
   renderReadingTest: function(user) {
     var test = this.currentTest;
     var sec = test.sections[this.currentSection];
     if (!sec) return '<p>Bo\'lim topilmadi</p>';
+    
     var qHTML = this.renderQuestions(sec.questions || []);
     var navHTML = this.renderNav();
     var secInfo = '<span class="badge badge-accent">Section ' + (this.currentSection + 1) + '/' + test.sections.length + '</span>';
     var timerHTML = this.currentMode === 'exam'
       ? '<div class="test-timer normal" id="test-timer">--:--</div>'
       : '<span class="badge badge-success"><i class="fa-solid fa-infinity"></i> Mashg\'ulot</span>';
+      
     var prevBtn = this.currentSection > 0 ? '<button class="btn btn-outline btn-sm" onclick="TestEngine.prevSection()"><i class="fa-solid fa-arrow-left"></i> Oldingi</button>' : '';
     var nextBtn = this.currentSection < test.sections.length - 1 ? '<button class="btn btn-primary btn-sm" onclick="TestEngine.nextSection()">Keyingi <i class="fa-solid fa-arrow-right"></i></button>' : '';
 
@@ -153,16 +160,19 @@ var TestEngine = {
         '</div></div></div>';
   },
 
+  /* ==================== LISTENING TEST ==================== */
   renderListeningTest: function(user) {
     var test = this.currentTest;
     var sec = test.sections[this.currentSection];
     if (!sec) return '<p>Bo\'lim topilmadi</p>';
+    
     var qHTML = this.renderQuestions(sec.questions || []);
     var navHTML = this.renderNav();
     var secInfo = '<span class="badge badge-accent">Section ' + (this.currentSection + 1) + '/' + test.sections.length + '</span>';
     var timerHTML = this.currentMode === 'exam'
       ? '<div class="test-timer normal" id="test-timer">--:--</div>'
       : '<span class="badge badge-success"><i class="fa-solid fa-infinity"></i> Mashg\'ulot</span>';
+      
     var prevBtn = this.currentSection > 0 ? '<button class="btn btn-outline btn-sm" onclick="TestEngine.prevSection()"><i class="fa-solid fa-arrow-left"></i> Oldingi</button>' : '';
     var nextBtn = this.currentSection < test.sections.length - 1 ? '<button class="btn btn-primary btn-sm" onclick="TestEngine.nextSection()">Keyingi <i class="fa-solid fa-arrow-right"></i></button>' : '';
 
@@ -170,7 +180,7 @@ var TestEngine = {
       '<h4><i class="fa-solid fa-headphones" style="margin-right:8px;"></i>' + sec.title + '</h4>' +
       '<div class="audio-player">' +
         '<button class="play-btn" id="audio-play-btn" onclick="TestEngine.toggleAudio()"><i class="fa-solid fa-play"></i></button>' +
-        '<div class="audio-progress"><div class="audio-progress-bar" id="audio-progress-bar" style="width:' + (this.audioElapsed > 0 ? '50' : '0') + '%"></div></div>' +
+        '<div class="audio-progress"><div class="audio-progress-bar" id="audio-progress-bar" style="width:0%"></div></div>' +
         '<span class="audio-time" id="audio-time">' + formatTime(this.audioElapsed) + '</span>' +
       '</div>' +
       '<div class="audio-note"><i class="fa-solid fa-volume-high"></i> Matn o\'qish orqali audio simulyatsiyasi</div></div>';
@@ -190,9 +200,11 @@ var TestEngine = {
         '</div></div></div>';
   },
 
+  /* ==================== WRITING TEST ==================== */
   renderWritingTest: function(user) {
     var test = this.currentTest;
     var secHTML = '';
+    
     for (var i = 0; i < test.sections.length; i++) {
       var sec = test.sections[i];
       var wc = countWords(this.writingAnswers[sec.id] || '');
@@ -225,6 +237,7 @@ var TestEngine = {
       '</div></div>';
   },
 
+  /* ==================== SAVOLLAR RENDER ==================== */
   renderQuestions: function(questions) {
     var html = '';
     for (var i = 0; i < questions.length; i++) {
@@ -278,6 +291,7 @@ var TestEngine = {
     return html;
   },
 
+  /* ==================== NAVIGATSIYA ==================== */
   renderNav: function() {
     var allQ = this.getAllQuestions();
     if (allQ.length === 0) return '';
@@ -315,13 +329,12 @@ var TestEngine = {
     return c > 0 ? c : '';
   },
 
+  /* ==================== JAVOB TANLASH (YANGILANGAN) ==================== */
   selectAnswer: function(qid, val) {
-    if (this.currentMode === 'exam' && this.answers[qid] && String(this.answers[qid]).trim() !== '') {
-      showToast('Imtihon rejimida javobni o\'zgartirib bo\'lmaydi', 'warning');
-      return;
-    }
+    // Javobni saqlash (imtihon va mashg'ulot rejimida farq yo'q)
     this.answers[qid] = val;
 
+    // Tanlangan variantni ko'rsatish
     var block = document.getElementById('qblock-' + qid);
     if (block) {
       var labels = block.querySelectorAll('.option-label');
@@ -339,13 +352,29 @@ var TestEngine = {
         }
       }
     }
+
+    // Pastdagi savol raqamlarini yangilash (yashil rang)
+    var allQ = this.getAllQuestions();
+    var navBtns = document.querySelectorAll('.q-nav-btn');
+    for (var j = 0; j < allQ.length; j++) {
+      if (navBtns[j]) {
+        var q = allQ[j];
+        var isAns = this.answers[q.id] && String(this.answers[q.id]).trim() !== '';
+        var isFlag = this.flagged[q.id];
+        navBtns[j].className = 'q-nav-btn';
+        if (isFlag) navBtns[j].classList.add('flagged');
+        else if (isAns) navBtns[j].classList.add('answered');
+      }
+    }
   },
 
+  /* ==================== WRITING INPUT ==================== */
   onWritingInput: function(secId, ta) {
     this.writingAnswers[secId] = ta.value;
     var wc = countWords(ta.value);
     var el = document.getElementById('wc-' + secId);
     if (el) el.textContent = wc;
+    
     var test = this.currentTest;
     if (test && test.sections) {
       for (var i = 0; i < test.sections.length; i++) {
@@ -363,6 +392,7 @@ var TestEngine = {
     }
   },
 
+  /* ==================== AUDIO ==================== */
   toggleAudio: function() {
     var btn = document.getElementById('audio-play-btn');
     var sec = this.currentTest.sections[this.currentSection];
@@ -413,6 +443,7 @@ var TestEngine = {
     }
   },
 
+  /* ==================== SECTION NAVIGATSIYA ==================== */
   prevSection: function() {
     if (this.currentSection > 0) {
       this.stopAudio();
@@ -433,6 +464,7 @@ var TestEngine = {
     }
   },
 
+  /* ==================== CHIQISH / BELGILASH ==================== */
   confirmExit: function() {
     showModal('Testni tark etish',
       '<p style="margin-bottom:16px;">Haqiqatan ham testni tark etmoqchimisiz?</p><p class="text-muted" style="font-size:14px;">Javoblar saqlanmaydi.</p>',
@@ -473,15 +505,18 @@ var TestEngine = {
     delete this.flagged[qid];
   },
 
+  /* ==================== TOPSHIRISH ==================== */
   confirmSubmit: function() {
     var allQ = this.getAllQuestions();
     var isW = this.currentTest.type === 'writing';
     var ansCount = 0;
+    
     if (!isW) {
       for (var i = 0; i < allQ.length; i++) {
         if (this.answers[allQ[i].id] && String(this.answers[allQ[i].id]).trim() !== '') ansCount++;
       }
     }
+    
     var body = '';
     if (isW) {
       body = '<p>Writing testni topshirmoqchimisiz?</p>';
@@ -492,6 +527,7 @@ var TestEngine = {
         '<div style="text-align:center;"><div style="font-size:32px;font-weight:800;color:var(--danger);">' + (allQ.length - ansCount) + '</div><div style="font-size:13px;color:var(--text-muted);">Javobsiz</div></div></div>' +
         (ansCount < allQ.length ? '<p style="color:var(--warning);font-size:14px;"><i class="fa-solid fa-triangle-exclamation"></i> ' + (allQ.length - ansCount) + ' ta savolga javob berilmagan!</p>' : '');
     }
+    
     showModal('Testni topshirish', body,
       '<button class="btn btn-ghost" onclick="closeModal()">Bekor qilish</button>' +
       '<button class="btn btn-accent" onclick="closeModal();TestEngine.submit();">Topshirish</button>'
@@ -519,7 +555,14 @@ var TestEngine = {
         var txt = this.writingAnswers[sec.id] || '';
         var wc = countWords(txt);
         var minW = sec.min_words || 150;
-        details.push({ section_id: sec.id, section_title: sec.title, word_count: wc, min_words: minW, meets_requirement: wc >= minW, text: txt });
+        details.push({
+          section_id: sec.id, 
+          section_title: sec.title, 
+          word_count: wc, 
+          min_words: minW, 
+          meets_requirement: wc >= minW, 
+          text: txt
+        });
       }
       bandScore = 0;
       score = 0;
@@ -530,7 +573,14 @@ var TestEngine = {
         var cAns = q.correct_answer || '';
         var correct = checkAnswer(uAns, cAns);
         if (correct) score++;
-        details.push({ question_id: q.id, type: q.type, text: q.text, user_answer: uAns, correct_answer: cAns, is_correct: correct });
+        details.push({
+          question_id: q.id, 
+          type: q.type, 
+          text: q.text, 
+          user_answer: uAns, 
+          correct_answer: cAns, 
+          is_correct: correct
+        });
       }
       bandScore = BandScore.calculate(score, allQ.length, test.type);
       bandScore = Math.round(bandScore * 2) / 2;
