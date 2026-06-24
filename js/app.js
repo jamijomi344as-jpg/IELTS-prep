@@ -2,20 +2,18 @@
    ASOSIY ILOVA MODULI
    ============================================================ */
 
-const App = {
+var App = {
   currentRoute: '',
 
   async init() {
     await initDB();
-
-    window.addEventListener('popstate', () => { this._handleRoute(); });
-    window.addEventListener('hashchange', () => { this._handleRoute(); });
-
+    window.addEventListener('popstate', function() { App._handleRoute(); });
+    window.addEventListener('hashchange', function() { App._handleRoute(); });
     this._handleRoute();
     console.log('IELTS Prep ishga tushdi');
   },
 
-  navigate(path) {
+  navigate: function(path) {
     if (window.location.hash === '#' + path) {
       this._handleRoute();
     } else {
@@ -39,8 +37,12 @@ const App = {
         else if (user) app.innerHTML = await Pages.dashboard(user);
         else app.innerHTML = Pages.landing();
       }
-      else if (route === 'login') { app.innerHTML = Pages.login(); }
-      else if (route === 'register') { app.innerHTML = Pages.register(); }
+      else if (route === 'login') {
+        app.innerHTML = Pages.login();
+      }
+      else if (route === 'register') {
+        app.innerHTML = Pages.register();
+      }
       else if (route === 'dashboard') {
         if (!user) { this.navigate('login'); return; }
         app.innerHTML = await Pages.dashboard(user);
@@ -74,12 +76,10 @@ const App = {
         if (!user || !user.isAdmin) { this.navigate('login'); return; }
         app.innerHTML = await Pages.adminTests(user);
       }
-      // YANGI: Test qo'shish sahifasi
       else if (route === 'admin' && parts[1] === 'add-test') {
         if (!user || !user.isAdmin) { this.navigate('login'); return; }
         app.innerHTML = AdminBuilder.renderPage(user);
       }
-      // YANGI: Mavjud testni tahrirlash
       else if (route === 'admin' && parts[1] === 'edit-test' && parts[2]) {
         if (!user || !user.isAdmin) { this.navigate('login'); return; }
         app.innerHTML = await AdminBuilder.renderEditPage(user, parts[2]);
@@ -102,85 +102,249 @@ const App = {
     window.scrollTo(0, 0);
   },
 
+  /* ==================== NATIJA SAHIFASI (TUZATILGAN) ==================== */
   async _renderResults(resultId, user) {
+    // 1. Avval o'quvchining natijalaridan qidirish
     var allResults = await DB.findResultsByStudent(user.id);
     var result = null;
     for (var i = 0; i < allResults.length; i++) {
-      if (allResults[i].id === resultId) { result = allResults[i]; break; }
+      if (allResults[i].id === resultId) {
+        result = allResults[i];
+        break;
+      }
     }
+
+    // 2. Agar topilmasa, barcha natijalar orasidan ham qidirish
     if (!result) {
-      return renderNavbar(user) + '<div class="container" style="padding:80px 24px;text-align:center;"><i class="fa-solid fa-circle-xmark" style="font-size:48px;color:var(--danger);margin-bottom:16px;display:block;"></i><h2>Natija topilmadi</h2><button class="btn btn-primary" style="margin-top:16px;" onclick="App.navigate(\'dashboard\')">Qaytish</button></div>';
+      var allRes = await DB.get('results');
+      for (var j = 0; j < allRes.length; j++) {
+        if (allRes[j].id === resultId) {
+          result = allRes[j];
+          break;
+        }
+      }
     }
+
+    // 3. Yana topilmasa
+    if (!result) {
+      return renderNavbar(user) +
+        '<div class="container" style="padding:80px 24px;text-align:center;">' +
+        '<i class="fa-solid fa-circle-xmark" style="font-size:48px;color:var(--danger);margin-bottom:16px;display:block;"></i>' +
+        '<h2>Natija topilmadi</h2>' +
+        '<p class="text-muted" style="margin-top:8px;">Bu natija mavjud emas yoki o\'chirilgan</p>' +
+        '<button class="btn btn-primary" style="margin-top:16px;" onclick="App.navigate(\'dashboard\')">Dashboard ga qaytish</button>' +
+        '</div>';
+    }
+
     var isWriting = result.test_type === 'writing';
     var bandDesc = BandScore.getBandDescription(result.band_score);
     var reviewHTML = '';
+
     if (isWriting) {
       var answers = result.answers || [];
       for (var w = 0; w < answers.length; w++) {
         var a = answers[w];
-        reviewHTML += '<div class="card card-body" style="margin-bottom:16px;"><h3 style="margin-bottom:12px;">' + a.section_title + '</h3><div class="flex gap-4" style="margin-bottom:16px;"><span class="badge ' + (a.meets_requirement ? 'badge-success' : 'badge-danger') + '"><i class="fa-solid ' + (a.meets_requirement ? 'fa-check' : 'fa-xmark') + '"></i> ' + (a.meets_requirement ? 'So\'z talabi bajarildi' : 'So\'z talabi bajarilmadi') + '</span><span class="badge badge-info">' + a.word_count + ' / ' + a.min_words + ' so\'z</span></div><div class="task-prompt">' + (a.text || '<span class="text-muted">Matn yo\'q</span>') + '</div></div>';
+        var wStatusClass = a.meets_requirement ? 'badge-success' : 'badge-danger';
+        var wIcon = a.meets_requirement ? 'fa-check' : 'fa-xmark';
+        var wText = a.meets_requirement ? 'So\'z talabi bajarildi' : 'So\'z talabi bajarilmadi';
+        var wContent = a.text || '<span class="text-muted">Yozilgan matn yo\'q</span>';
+
+        reviewHTML += '<div class="card card-body" style="margin-bottom:16px;">' +
+          '<h3 style="margin-bottom:12px;">' + a.section_title + '</h3>' +
+          '<div class="flex gap-4" style="margin-bottom:16px;">' +
+          '<span class="badge ' + wStatusClass + '"><i class="fa-solid ' + wIcon + '"></i> ' + wText + '</span>' +
+          '<span class="badge badge-info">' + a.word_count + ' / ' + a.min_words + ' so\'z</span>' +
+          '</div>' +
+          '<div class="task-prompt">' + wContent + '</div>' +
+          '</div>';
       }
     } else {
       var rAnswers = result.answers || [];
       for (var r = 0; r < rAnswers.length; r++) {
         var ra = rAnswers[r];
-        var sc = ra.is_correct ? 'correct' : (ra.user_answer && String(ra.user_answer).trim() !== '' ? 'incorrect' : 'unanswered');
+        var sc = 'unanswered';
+        if (ra.is_correct) {
+          sc = 'correct';
+        } else if (ra.user_answer && String(ra.user_answer).trim() !== '') {
+          sc = 'incorrect';
+        }
+
         var ua = (ra.user_answer && String(ra.user_answer).trim() !== '') ? ra.user_answer : '—';
-        var vc = sc === 'correct' ? 'correct' : (sc === 'incorrect' ? 'incorrect' : '');
-        reviewHTML += '<div class="review-item ' + sc + '"><div class="review-q"><div class="review-q-num">' + ra.question_id + '</div><div><div style="font-weight:600;margin-bottom:4px;">' + ra.text + '</div><span class="badge badge-info" style="font-size:11px;">' + ra.type.toUpperCase() + '</span></div></div><div class="review-answers"><div class="review-answer-item"><span class="label">Sizning javob:</span><span class="value ' + vc + '">' + ua + '</span></div><div class="review-answer-item"><span class="label">To\'g\'ri javob:</span><span class="value correct">' + ra.correct_answer + '</span></div></div></div>';
+        var vc = '';
+        if (sc === 'correct') vc = 'correct';
+        else if (sc === 'incorrect') vc = 'incorrect';
+
+        reviewHTML += '<div class="review-item ' + sc + '">' +
+          '<div class="review-q">' +
+          '<div class="review-q-num">' + ra.question_id + '</div>' +
+          '<div>' +
+          '<div style="font-weight:600;margin-bottom:4px;">' + ra.text + '</div>' +
+          '<span class="badge badge-info" style="font-size:11px;">' + ra.type.toUpperCase() + '</span>' +
+          '</div></div>' +
+          '<div class="review-answers">' +
+          '<div class="review-answer-item"><span class="label">Sizning javobingiz:</span>' +
+          '<span class="value ' + vc + '">' + ua + '</span></div>' +
+          '<div class="review-answer-item"><span class="label">To\'g\'ri javob:</span>' +
+          '<span class="value correct">' + ra.correct_answer + '</span></div>' +
+          '</div></div>';
       }
     }
+
     var pct = result.total_questions > 0 ? Math.round((result.score / result.total_questions) * 100) : 0;
     var sdHTML = '';
-    if (!isWriting) sdHTML = '<div style="margin-top:20px;display:flex;justify-content:center;gap:32px;"><div><div style="font-size:24px;font-weight:800;">' + result.score + '/' + result.total_questions + '</div><div style="font-size:13px;opacity:0.7;">To\'g\'ri</div></div><div><div style="font-size:24px;font-weight:800;">' + pct + '%</div><div style="font-size:13px;opacity:0.7;">Foiz</div></div></div>';
-    return renderNavbar(user) + '<div class="container results-container"><div class="result-score-card"><div class="score-label">' + getTypeName(result.test_type) + ' — ' + (result.mode === 'exam' ? 'Imtihon' : 'Mashg\'ulot') + '</div><div class="band-score">' + result.band_score + '</div><div class="score-detail">' + result.test_title + '</div><div style="margin-top:16px;opacity:0.8;font-size:15px;">' + bandDesc + '</div>' + sdHTML + '<div style="margin-top:12px;font-size:13px;opacity:0.6;">' + formatDate(result.submitted_at) + '</div></div><div class="result-actions"><button class="btn btn-primary" onclick="App.navigate(\'tests/' + result.test_type + '\')"><i class="fa-solid fa-arrow-rotate-right"></i> Qayta ishlash</button><button class="btn btn-outline" onclick="App.navigate(\'my-results\')"><i class="fa-solid fa-list"></i> Natijalar</button></div><h2 style="font-size:22px;margin-bottom:20px;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);margin-right:8px;"></i>Javob tahlili</h2><div class="answer-review">' + reviewHTML + '</div></div>';
+    if (!isWriting) {
+      sdHTML = '<div style="margin-top:20px;display:flex;justify-content:center;gap:32px;">' +
+        '<div><div style="font-size:24px;font-weight:800;">' + result.score + '/' + result.total_questions + '</div>' +
+        '<div style="font-size:13px;opacity:0.7;">To\'g\'ri javoblar</div></div>' +
+        '<div><div style="font-size:24px;font-weight:800;">' + pct + '%</div>' +
+        '<div style="font-size:13px;opacity:0.7;">Foiz</div></div></div>';
+    }
+
+    var modeText = result.mode === 'exam' ? 'Imtihon rejimi' : 'Mashg\'ulot rejimi';
+    var typeName = getTypeName(result.test_type);
+
+    var html = renderNavbar(user);
+    html += '<div class="container results-container">';
+
+    html += '<div class="result-score-card">' +
+      '<div class="score-label">' + typeName + ' — ' + modeText + '</div>' +
+      '<div class="band-score">' + result.band_score + '</div>' +
+      '<div class="score-detail">' + result.test_title + '</div>' +
+      '<div style="margin-top:16px;opacity:0.8;font-size:15px;">' + bandDesc + '</div>' +
+      sdHTML +
+      '<div style="margin-top:12px;font-size:13px;opacity:0.6;">' + formatDate(result.submitted_at) + '</div>' +
+      '</div>';
+
+    html += '<div class="result-actions">' +
+      '<button class="btn btn-primary" onclick="App.navigate(\'tests/' + result.test_type + '\')">' +
+      '<i class="fa-solid fa-arrow-rotate-right"></i> Qayta ishlash</button>' +
+      '<button class="btn btn-outline" onclick="App.navigate(\'my-results\')">' +
+      '<i class="fa-solid fa-list"></i> Barcha natijalar</button>' +
+      '<button class="btn btn-ghost" onclick="App.navigate(\'dashboard\')">' +
+      '<i class="fa-solid fa-home"></i> Dashboard</button>' +
+      '</div>';
+
+    html += '<h2 style="font-size:22px;margin-bottom:20px;">' +
+      '<i class="fa-solid fa-magnifying-glass" style="color:var(--primary);margin-right:8px;"></i>' +
+      'Javob tahlili</h2>' +
+      '<div class="answer-review">' + reviewHTML + '</div>';
+
+    html += '</div>';
+    return html;
   },
 
-  _render404() {
-    return renderNavbar(null) + '<div style="display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 70px);padding:40px;"><div class="text-center"><div style="font-size:120px;font-weight:900;color:var(--primary);line-height:1;">404</div><h2 style="font-size:24px;margin-bottom:8px;">Sahifa topilmadi</h2><button class="btn btn-primary btn-lg" style="margin-top:16px;" onclick="App.navigate(\'\')"><i class="fa-solid fa-home"></i> Bosh sahifa</button></div></div>';
+  /* ==================== 404 SAHIFA ==================== */
+  _render404: function() {
+    return renderNavbar(null) +
+      '<div style="display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 70px);padding:40px;">' +
+      '<div class="text-center">' +
+      '<div style="font-size:120px;font-weight:900;color:var(--primary);line-height:1;">404</div>' +
+      '<h2 style="font-size:24px;margin-bottom:8px;">Sahifa topilmadi</h2>' +
+      '<p class="text-muted" style="margin-bottom:24px;">Siz qidirayotgan sahifa mavjud emas</p>' +
+      '<button class="btn btn-primary btn-lg" onclick="App.navigate(\'\')">' +
+      '<i class="fa-solid fa-home"></i> Bosh sahifaga</button>' +
+      '</div></div>';
   }
 };
 
-/* GLOBAL HANDLERS */
+
+/* ============================================================
+   GLOBAL EVENT HANDLERLAR
+   ============================================================ */
+
 function switchAuthTab(el, role) {
   var tabs = document.querySelectorAll('.auth-tab');
-  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.remove('active');
+  }
   el.classList.add('active');
   document.getElementById('login-role').value = role;
 }
+
 async function handleLogin(e) {
   e.preventDefault();
-  var r = await Auth.login(document.getElementById('login-email').value, document.getElementById('login-password').value, document.getElementById('login-role').value === 'admin');
-  if (r.success) { showToast(r.message, 'success'); var u = Auth.getCurrentUser(); App.navigate(u && u.isAdmin ? 'admin' : 'dashboard'); }
-  else showToast(r.message, 'error');
-}
-async function handleRegister(e) {
-  e.preventDefault();
-  if (document.getElementById('reg-password').value !== document.getElementById('reg-password2').value) { showToast('Parollar mos kelmadi', 'error'); return; }
-  var r = await Auth.register(document.getElementById('reg-name').value, document.getElementById('reg-email').value, document.getElementById('reg-password').value);
-  if (r.success) { showToast(r.message, 'success'); App.navigate('dashboard'); } else showToast(r.message, 'error');
-}
-async function deleteTest(testId) {
-  showModal('Testni o\'chirish', '<p>Haqiqatan ham o\'chirmoqchimisiz?</p>', '<button class="btn btn-ghost" onclick="closeModal()">Bekor</button><button class="btn btn-danger" onclick="confirmDeleteTest(\'' + testId + '\')">O\'chirish</button>');
-}
-async function confirmDeleteTest(testId) {
-  await DB.remove('tests', testId);
-  closeModal(); showToast('O\'chirildi', 'success'); App.navigate('admin/tests');
+  var email = document.getElementById('login-email').value;
+  var password = document.getElementById('login-password').value;
+  var role = document.getElementById('login-role').value;
+
+  var result = await Auth.login(email, password, role === 'admin');
+
+  if (result.success) {
+    showToast(result.message, 'success');
+    var user = Auth.getCurrentUser();
+    if (user && user.isAdmin) {
+      App.navigate('admin');
+    } else {
+      App.navigate('dashboard');
+    }
+  } else {
+    showToast(result.message, 'error');
+  }
 }
 
-/* ISHGA TUSHIRISH */
+async function handleRegister(e) {
+  e.preventDefault();
+  var name = document.getElementById('reg-name').value;
+  var email = document.getElementById('reg-email').value;
+  var password = document.getElementById('reg-password').value;
+  var password2 = document.getElementById('reg-password2').value;
+
+  if (password !== password2) {
+    showToast('Parollar mos kelmadi', 'error');
+    return;
+  }
+
+  var result = await Auth.register(name, email, password);
+
+  if (result.success) {
+    showToast(result.message, 'success');
+    App.navigate('dashboard');
+  } else {
+    showToast(result.message, 'error');
+  }
+}
+
+async function deleteTest(testId) {
+  var body = '<p>Haqiqatan ham bu testni o\'chirmoqchimisiz? Bu amalni qaytarib bo\'lmaydi.</p>';
+  var footer = '<button class="btn btn-ghost" onclick="closeModal()">Bekor qilish</button>' +
+    '<button class="btn btn-danger" onclick="confirmDeleteTest(\'' + testId + '\')">Ha, o\'chirish</button>';
+  showModal('Testni o\'chirish', body, footer);
+}
+
+async function confirmDeleteTest(testId) {
+  await DB.remove('tests', testId);
+  closeModal();
+  showToast('Test muvaffaqiyatli o\'chirildi', 'success');
+  App.navigate('admin/tests');
+}
+
+
+/* ============================================================
+   ILOVANI ISHGA TUSHIRISH
+   ============================================================ */
 document.addEventListener('DOMContentLoaded', async function() {
   try {
     var loader = document.getElementById('initial-loader');
     var appEl = document.getElementById('app');
     if (loader) loader.style.display = 'none';
     if (appEl) appEl.style.display = 'block';
+
     await App.init();
   } catch (err) {
-    console.error('Xato:', err);
-    var l2 = document.getElementById('initial-loader');
-    var a2 = document.getElementById('app');
-    if (l2) l2.style.display = 'none';
-    if (a2) { a2.style.display = 'block'; a2.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;text-align:center;"><div><i class="fa-solid fa-bug" style="font-size:48px;color:#DC2626;margin-bottom:16px;display:block;"></i><h2>Xato: ' + err.message + '</h2><br><button class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-rotate-right"></i> Qayta yuklash</button></div></div>'; }
+    console.error('Ilova ishga tushish xatosi:', err);
+    var loader2 = document.getElementById('initial-loader');
+    var appEl2 = document.getElementById('app');
+    if (loader2) loader2.style.display = 'none';
+    if (appEl2) {
+      appEl2.style.display = 'block';
+      appEl2.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;text-align:center;">' +
+        '<div>' +
+        '<i class="fa-solid fa-bug" style="font-size:48px;color:#DC2626;margin-bottom:16px;display:block;"></i>' +
+        '<h2 style="margin-bottom:8px;">Ilova xatosi</h2>' +
+        '<p style="color:#6B7280;margin-bottom:16px;">' + err.message + '</p>' +
+        '<button class="btn btn-primary" onclick="location.reload()" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:8px;background:#0D7377;color:#fff;border:none;font-weight:600;cursor:pointer;font-size:15px;">' +
+        '<i class="fa-solid fa-rotate-right"></i> Qayta yuklash</button>' +
+        '</div></div>';
+    }
   }
 });
