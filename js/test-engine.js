@@ -1,5 +1,5 @@
 /* ============================================================
-   TEST ISHLASH MODULI (To'liq, xatosiz versiya)
+   TEST ISHLASH MODULI (To'liq, tuzatilgan versiya)
    ============================================================ */
 
 var TestEngine = {
@@ -35,7 +35,6 @@ var TestEngine = {
       self.audioElapsed = 0;
       self.audioPlaying = false;
 
-      // Kalit nomlarini moslashtirish (Supabase uchun)
       if (!test.time_limit && test.timeLimit) {
         test.time_limit = test.timeLimit;
       }
@@ -96,9 +95,7 @@ var TestEngine = {
   },
 
   stopAudio: function() {
-    try {
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-    } catch(e) {}
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
     if (this.audioTimer) { clearInterval(this.audioTimer); this.audioTimer = null; }
     this.audioPlaying = false;
     this.audioElapsed = 0;
@@ -219,7 +216,7 @@ var TestEngine = {
         '<div class="word-count ' + wcClass + '"><i class="fa-solid fa-font"></i> <span id="wc-' + sec.id + '">' + wc + '</span> so\'z / kamida ' + minW + ' so\'z kerak</div></div>';
     }
 
-    var timerHTML = this.currentMode === 'exam'
+    var timerHTML = this.currentMode === 'exam
       ? '<div class="test-timer normal" id="test-timer">--:--</div>'
       : '<span class="badge badge-success"><i class="fa-solid fa-infinity"></i> Mashg\'ulot</span>';
 
@@ -237,7 +234,7 @@ var TestEngine = {
       '</div></div>';
   },
 
-  /* ==================== SAVOLLAR RENDER ==================== */
+  /* ==================== SAVOLLAR RENDER (TUZATILGAN) ==================== */
   renderQuestions: function(questions) {
     var html = '';
     for (var i = 0; i < questions.length; i++) {
@@ -258,7 +255,8 @@ var TestEngine = {
         var letter = opt.charAt(0);
         var sel = ua === letter ? ' selected' : '';
         var text = opt.length > 2 ? opt.substring(3) : opt;
-        html += '<label class="option-label' + sel + '" onclick="TestEngine.selectAnswer(' + q.id + ', \'' + letter + '\')">' +
+        // TUZATISH: data-value atributi qo'shildi
+        html += '<label class="option-label' + sel + '" data-value="' + letter + '" onclick="TestEngine.selectAnswer(' + q.id + ', \'' + letter + '\')">' +
           '<input type="radio" name="q' + q.id + '"' + (sel ? ' checked' : '') + '>' +
           '<span class="option-letter">' + letter + '</span><span>' + text + '</span></label>';
       }
@@ -268,7 +266,8 @@ var TestEngine = {
       html += '<div class="question-options">';
       for (var j = 0; j < opts.length; j++) {
         var s2 = ua === opts[j] ? ' selected' : '';
-        html += '<label class="option-label' + s2 + '" onclick="TestEngine.selectAnswer(' + q.id + ', \'' + opts[j] + '\')">' +
+        // TUZATISH: data-value ga to'liq so'z yozildi
+        html += '<label class="option-label' + s2 + '" data-value="' + opts[j] + '" onclick="TestEngine.selectAnswer(' + q.id + ', \'' + opts[j] + '\')">' +
           '<input type="radio" name="q' + q.id + '"' + (s2 ? ' checked' : '') + '>' +
           '<span class="option-letter">' + opts[j].charAt(0) + '</span><span>' + opts[j] + '</span></label>';
       }
@@ -278,7 +277,8 @@ var TestEngine = {
       html += '<div class="question-options">';
       for (var k = 0; k < opts2.length; k++) {
         var s3 = ua === opts2[k] ? ' selected' : '';
-        html += '<label class="option-label' + s3 + '" onclick="TestEngine.selectAnswer(' + q.id + ', \'' + opts2[k] + '\')">' +
+        // TUZATISH: data-value ga to'liq so'z yozildi
+        html += '<label class="option-label' + s3 + '" data-value="' + opts2[k] + '" onclick="TestEngine.selectAnswer(' + q.id + ', \'' + opts2[k] + '\')">' +
           '<input type="radio" name="q' + q.id + '"' + (s3 ? ' checked' : '') + '>' +
           '<span class="option-letter">' + opts2[k].charAt(0) + '</span><span>' + opts2[k] + '</span></label>';
       }
@@ -329,9 +329,9 @@ var TestEngine = {
     return c > 0 ? c : '';
   },
 
-  /* ==================== JAVOB TANLASH (YANGILANGAN) ==================== */
+  /* ==================== JAVOB TANLASH (TUZATILGAN) ==================== */
   selectAnswer: function(qid, val) {
-    // Javobni saqlash (imtihon va mashg'ulot rejimida farq yo'q)
+    // Javobni saqlash
     this.answers[qid] = val;
 
     // Tanlangan variantni ko'rsatish
@@ -340,8 +340,9 @@ var TestEngine = {
       var labels = block.querySelectorAll('.option-label');
       for (var i = 0; i < labels.length; i++) {
         var lbl = labels[i];
-        var ltr = lbl.querySelector('.option-letter');
-        if (ltr && val === ltr.textContent) {
+        // TUZATISH: faqat harfni emas, data-value ni solishtiramiz
+        var lblVal = lbl.getAttribute('data-value') || '';
+        if (lblVal === val) {
           lbl.classList.add('selected');
           var inp = lbl.querySelector('input');
           if (inp) inp.checked = true;
@@ -353,7 +354,7 @@ var TestEngine = {
       }
     }
 
-    // Pastdagi savol raqamlarini yangilash (yashil rang)
+    // Pastdagi savol raqamlarini yangilash
     var allQ = this.getAllQuestions();
     var navBtns = document.querySelectorAll('.q-nav-btn');
     for (var j = 0; j < allQ.length; j++) {
@@ -555,14 +556,7 @@ var TestEngine = {
         var txt = this.writingAnswers[sec.id] || '';
         var wc = countWords(txt);
         var minW = sec.min_words || 150;
-        details.push({
-          section_id: sec.id, 
-          section_title: sec.title, 
-          word_count: wc, 
-          min_words: minW, 
-          meets_requirement: wc >= minW, 
-          text: txt
-        });
+        details.push({ section_id: sec.id, section_title: sec.title, word_count: wc, min_words: minW, meets_requirement: wc >= minW, text: txt });
       }
       bandScore = 0;
       score = 0;
@@ -573,14 +567,7 @@ var TestEngine = {
         var cAns = q.correct_answer || '';
         var correct = checkAnswer(uAns, cAns);
         if (correct) score++;
-        details.push({
-          question_id: q.id, 
-          type: q.type, 
-          text: q.text, 
-          user_answer: uAns, 
-          correct_answer: cAns, 
-          is_correct: correct
-        });
+        details.push({ question_id: q.id, type: q.type, text: q.text, user_answer: uAns, correct_answer: cAns, is_correct: correct });
       }
       bandScore = BandScore.calculate(score, allQ.length, test.type);
       bandScore = Math.round(bandScore * 2) / 2;
@@ -602,8 +589,11 @@ var TestEngine = {
       submitted_at: new Date().toISOString()
     };
 
+    // TUZATISH: Biroz kutib, keyin natijalar sahifasiga o'tish
     DB.insert('results', result).then(function() {
-      App.navigate('results/' + result.id);
+      setTimeout(function() {
+        App.navigate('results/' + result.id);
+      }, 300);
     });
   }
 };
